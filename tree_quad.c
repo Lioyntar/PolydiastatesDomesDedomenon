@@ -1,96 +1,113 @@
 #include "movies_common.h"
 
-typedef struct QuadNode {
-    double x_min, y_min, x_max, y_max;
-    Movie *movies[50]; // Capacity
+// --- OCTREE (3D) ---
+typedef struct OctNode {
+    double min[3], max[3]; 
+    Movie *movies[50];     
     int count;
-    struct QuadNode *nw, *ne, *sw, *se;
+    struct OctNode *children[8]; 
     int is_leaf;
-} QuadNode;
+} OctNode;
 
-QuadNode* create_node(double x1, double y1, double x2, double y2) {
-    QuadNode *n = malloc(sizeof(QuadNode));
-    n->x_min = x1; n->y_min = y1; n->x_max = x2; n->y_max = y2;
+OctNode* create_node(double x1, double y1, double z1, double x2, double y2, double z2) {
+    OctNode *n = malloc(sizeof(OctNode));
+    n->min[0] = x1; n->min[1] = y1; n->min[2] = z1;
+    n->max[0] = x2; n->max[1] = y2; n->max[2] = z2;
     n->count = 0; n->is_leaf = 1;
-    n->nw = n->ne = n->sw = n->se = NULL;
+    for(int i=0; i<8; i++) n->children[i] = NULL;
     return n;
 }
 
-void insert_quad(QuadNode *n, Movie *m) {
-    if (m->budget < n->x_min || m->budget > n->x_max || 
-        m->popularity < n->y_min || m->popularity > n->y_max) return;
+void insert_oct(OctNode *n, Movie *m) {
+    if (m->budget < n->min[0] || m->budget > n->max[0] || 
+        m->popularity < n->min[1] || m->popularity > n->max[1] ||
+        m->runtime < n->min[2] || m->runtime > n->max[2]) return;
 
     if (n->is_leaf) {
         if (n->count < 50) { n->movies[n->count++] = m; return; }
-        // Split
         n->is_leaf = 0;
-        double xm = (n->x_min + n->x_max)/2, ym = (n->y_min + n->y_max)/2;
-        n->nw = create_node(n->x_min, ym, xm, n->y_max);
-        n->ne = create_node(xm, ym, n->x_max, n->y_max);
-        n->sw = create_node(n->x_min, n->y_min, xm, ym);
-        n->se = create_node(xm, n->y_min, n->x_max, ym);
-        // Re-distribute existing
-        for(int i=0; i<n->count; i++) {
-            insert_quad(n->nw, n->movies[i]); insert_quad(n->ne, n->movies[i]);
-            insert_quad(n->sw, n->movies[i]); insert_quad(n->se, n->movies[i]);
+        double mid[3];
+        for(int d=0; d<3; d++) mid[d] = (n->min[d] + n->max[d]) / 2.0;
+        
+        for(int i=0; i<8; i++) {
+            double c_min[3], c_max[3];
+            for(int d=0; d<3; d++) {
+                if (i & (1 << d)) { c_min[d] = mid[d]; c_max[d] = n->max[d]; }
+                else { c_min[d] = n->min[d]; c_max[d] = mid[d]; }
+            }
+            n->children[i] = create_node(c_min[0], c_min[1], c_min[2], c_max[0], c_max[1], c_max[2]);
+        }
+        for(int k=0; k<n->count; k++) {
+            for(int i=0; i<8; i++) insert_oct(n->children[i], n->movies[k]);
         }
         n->count = 0;
     }
-    insert_quad(n->nw, m); insert_quad(n->ne, m);
-    insert_quad(n->sw, m); insert_quad(n->se, m);
+    for(int i=0; i<8; i++) insert_oct(n->children[i], m);
 }
 
-void query_quad(QuadNode *n, double min[], double max[], Movie **res, int *cnt) {
+void query_oct(OctNode *n, double min[], double max[], Movie **res, int *cnt) {
     if (!n) return;
-    // Check overlap
-    if (n->x_max < min[0] || n->x_min > max[0] || n->y_max < min[1] || n->y_min > max[1]) return;
+    if (n->max[0] < min[0] || n->min[0] > max[0] || 
+        n->max[1] < min[1] || n->min[1] > max[1] ||
+        n->max[2] < min[2] || n->min[2] > max[2]) return;
 
     if (n->is_leaf) {
         for(int i=0; i<n->count; i++) {
             Movie *m = n->movies[i];
-            if (m->budget >= min[0] && m->budget <= max[0] &&
+            if (!m->is_deleted && // Check Delete Flag
+                m->budget >= min[0] && m->budget <= max[0] &&
                 m->popularity >= min[1] && m->popularity <= max[1] &&
                 m->runtime >= min[2] && m->runtime <= max[2]) {
                 res[(*cnt)++] = m;
             }
         }
     } else {
-        query_quad(n->nw, min, max, res, cnt); query_quad(n->ne, min, max, res, cnt);
-        query_quad(n->sw, min, max, res, cnt); query_quad(n->se, min, max, res, cnt);
+        for(int i=0; i<8; i++) query_oct(n->children[i], min, max, res, cnt);
     }
 }
 
 int main() {
     Movie *data = malloc(MAX_MOVIES * sizeof(Movie));
-    int n = load_csv("movies.csv", data);
+    int total_n = load_csv("movies.csv", data);
+    Movie **results = malloc(total_n * sizeof(Movie*));
     
-    printf("[Quad Tree] Building...\n");
-    clock_t start = clock();
-    QuadNode *root = create_node(0, 0, 500000000, 1000); // Όρια για το QuadTree
-    for(int i=0; i<n; i++) insert_quad(root, &data[i]);
-    printf("Build Time: %.4f sec\n", (double)(clock()-start)/CLOCKS_PER_SEC);
-
-    // ΟΡΙΑ ΑΝΑΖΗΤΗΣΗΣ (Πρέπει να είναι ίδια με το k-d tree για να βγάλει 2798)
-    // Αν στο k-d tree άλλαξες τα όρια, άλλαξέ τα κι εδώ!
-    // Εδώ βάζω τα όρια που φαίνεται να χρησιμοποίησες (βάσει του ότι βρήκε αποτελέσματα)
     double minv[] = {1000, 2, 60};     
-    double maxv[] = {50000, 50, 180};  
-    
-    Movie **results = malloc(n * sizeof(Movie*));
-    int count = 0;
-    
-    start = clock();
-    query_quad(root, minv, maxv, results, &count);
-    printf("Query Time: %.4f sec | Found: %d\n", (double)(clock()-start)/CLOCKS_PER_SEC, count);
-    
-    // --- LSH SIMILARITY PART ---
-    if (count > 0) {
-        printf("\n[LSH Similarity] Target: %s\n", results[0]->title);
-        for(int i=1; i<count && i<10; i++) {
-            double sim = jaccard_similarity(results[0], results[i]);
-            if (sim > 0.3) printf(" -> %s (Sim: %.2f)\n", results[i]->title, sim);
-        }
+    double maxv[] = {50000, 50, 180}; 
+
+    printf("\n=== EXPERIMENTAL EVALUATION (Scalability) ===\n");
+    printf("| Dataset Size | Build Time (s) | Query Time (s) |\n");
+    printf("|--------------|----------------|----------------|\n");
+
+    for (int n = 50000; n <= 200000; n += 50000) {
+        if (n > total_n) break;
+        clock_t start = clock();
+        OctNode *root = create_node(0, 0, 0, 500000000, 1000, 500);
+        for(int i=0; i<n; i++) insert_oct(root, &data[i]);
+        double build_time = (double)(clock()-start)/CLOCKS_PER_SEC;
+        
+        int count = 0;
+        start = clock();
+        query_oct(root, minv, maxv, results, &count);
+        double query_time = (double)(clock()-start)/CLOCKS_PER_SEC;
+        printf("| %-12d | %-14.4f | %-14.4f |\n", n, build_time, query_time);
     }
 
+    // Demo Operations
+    OctNode *root = create_node(0, 0, 0, 500000000, 1000, 500);
+    for(int i=0; i<total_n; i++) insert_oct(root, &data[i]);
+    
+    int count = 0;
+    query_oct(root, minv, maxv, results, &count);
+    
+    if (count > 0) {
+        printf("\n[Delete Demo] Removing first result...\n");
+        results[0]->is_deleted = 1;
+        int c2 = 0;
+        query_oct(root, minv, maxv, results, &c2);
+        printf("Count before: %d, After: %d\n", count, c2);
+        
+        results[0]->is_deleted = 0; // Undelete for kNN
+        run_knn(results[0], results, count, 5);
+    }
     return 0;
 }
