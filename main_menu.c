@@ -13,12 +13,17 @@ int main() {
         printf("4. Run R-Tree\n");
         printf("0. Exit\n");
         printf("Choice: ");
-        scanf("%d", &choice);
+        
+        if (scanf("%d", &choice) != 1) { // Πιο ασφαλής ανάγνωση
+            printf("Invalid input. Please enter a number.\n");
+            // Καθαρισμός buffer για αποφυγή ατέρμονου βρόχου
+            while(getchar() != '\n');
+            continue;
+        }
 
         if (choice == 0) break;
         
-        // ΑΛΛΑΓΗ: Καλούμε απευθείας τα .exe χωρίς gcc
-        // (Βεβαιώσου ότι τα .exe ονομάζονται έτσι όπως φαίνονται παρακάτω)
+        // Καλούμε απευθείας τα .exe (υποθέτουμε ότι είναι στον ίδιο φάκελο)
         if (choice == 1) {
             printf("\n--- Running k-d Tree ---\n");
             system("tree_kdtree.exe"); 
@@ -34,6 +39,8 @@ int main() {
         else if (choice == 4) {
              printf("\n--- Running R-Tree ---\n");
              system("tree_rtree.exe");
+        } else {
+             printf("Invalid choice. Please select from 0 to 4.\n");
         }
     }
     return 0;
