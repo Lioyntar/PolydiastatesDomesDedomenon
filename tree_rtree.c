@@ -17,7 +17,7 @@ void update_mbr(RNode *node) {
     if (node->is_leaf) {
         for(int i=0; i<node->count; i++) {
             Movie *m = node->data[i];
-            if (!m->is_deleted) { // MBR considers only non-deleted ideally, but static build includes all
+            if (!m->is_deleted) { 
                 if(m->budget < node->min[0]) node->min[0] = m->budget;
                 if(m->budget > node->max[0]) node->max[0] = m->budget;
                 if(m->popularity < node->min[1]) node->min[1] = m->popularity;
@@ -111,15 +111,42 @@ int main() {
     int count = 0;
     query_rtree(root, minv, maxv, results, &count);
     
+    // --- DEMO OPERATIONS (DELETE, UPDATE, KNN, LSH) ---
     if (count > 0) {
-        printf("\n[Delete Demo] Removing first result...\n");
-        results[0]->is_deleted = 1;
+        // --- DELETE DEMO ---
+        printf("\n[Delete Demo] Removing first result: '%s'...\n", results[0]->title);
+        results[0]->is_deleted = 1; // Logical Delete
+        
         int c2 = 0;
-        query_rtree(root, minv, maxv, results, &c2);
+        query_rtree(root, minv, maxv, results, &c2); 
+        
         printf("Count before: %d, After: %d\n", count, c2);
         
+        // Restore (Undelete)
         results[0]->is_deleted = 0;
+
+        // --- UPDATE DEMO ---
+        printf("\n[Update Demo] Updating popularity for '%s'...\n", results[0]->title);
+        double old_pop = results[0]->popularity;
+        results[0]->popularity += 5.0; 
+        printf(" Old Popularity: %.2f -> New Popularity: %.2f\n", old_pop, results[0]->popularity);
+
+        // --- kNN OPERATION ---
         run_knn(results[0], results, count, 5);
+
+        // --- LSH SIMILARITY ---
+        printf("\n[LSH Similarity] Target: %s\n", results[0]->title);
+        int found_sim = 0;
+        for(int i=1; i<count && i<500; i++) { 
+            double sim = jaccard_similarity(results[0], results[i]);
+            if (sim > 0.3) { 
+                printf(" -> %s (Sim: %.2f)\n", results[i]->title, sim);
+                found_sim++;
+                if(found_sim >= 5) break; 
+            }
+        }
+        if (found_sim == 0) printf(" No high text similarity found in top results.\n");
     }
+
     return 0;
 }

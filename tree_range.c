@@ -4,7 +4,7 @@
 typedef struct RangeNode {
     Movie *movie; 
     struct RangeNode *left, *right;
-    Movie **sorted_y; // Διατηρούμε τη δομή για το σωστό Build Time
+    Movie **sorted_y; 
     int size;
 } RangeNode;
 
@@ -37,7 +37,6 @@ RangeNode* build_range(Movie **mptr, int n) {
     return node;
 }
 
-// ΔΙΟΡΘΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ QUERY (Χωρίς διπλότυπα)
 void query_range(RangeNode *node, double min[], double max[], Movie **res, int *cnt) {
     if (!node) return;
 
@@ -50,11 +49,9 @@ void query_range(RangeNode *node, double min[], double max[], Movie **res, int *
     }
 
     // 2. Αναδρομή βάσει Budget (BST Logic)
-    // Αν το Budget του κόμβου είναι μεγαλύτερο από το min, μπορεί να υπάρχουν κι άλλα αριστερά
     if (node->movie->budget >= min[0]) {
         query_range(node->left, min, max, res, cnt);
     }
-    // Αν το Budget του κόμβου είναι μικρότερο από το max, μπορεί να υπάρχουν κι άλλα δεξιά
     if (node->movie->budget <= max[0]) {
         query_range(node->right, min, max, res, cnt);
     }
@@ -96,30 +93,41 @@ int main() {
     
     printf("\nFound: %d movies (Should match 2798)\n", count);
 
+    // --- DEMO OPERATIONS (DELETE, UPDATE, KNN, LSH) ---
     if (count > 0) {
+        // --- DELETE DEMO ---
         printf("\n[Delete Demo] Removing first result: '%s'...\n", results[0]->title);
-        results[0]->is_deleted = 1;
+        results[0]->is_deleted = 1; // Logical Delete
+        
         int c2 = 0;
-        query_range(root, minv, maxv, results, &c2);
+        query_range(root, minv, maxv, results, &c2); 
+        
         printf("Count before: %d, After: %d\n", count, c2);
         
-        // Restore for kNN
+        // Restore (Undelete)
         results[0]->is_deleted = 0;
+
+        // --- UPDATE DEMO ---
+        printf("\n[Update Demo] Updating popularity for '%s'...\n", results[0]->title);
+        double old_pop = results[0]->popularity;
+        results[0]->popularity += 5.0; 
+        printf(" Old Popularity: %.2f -> New Popularity: %.2f\n", old_pop, results[0]->popularity);
+
+        // --- kNN OPERATION ---
         run_knn(results[0], results, count, 5);
-    }
-    
-    // --- LSH SIMILARITY ---
-    if (count > 0) {
+
+        // --- LSH SIMILARITY ---
         printf("\n[LSH Similarity] Target: %s\n", results[0]->title);
         int found_sim = 0;
         for(int i=1; i<count && i<500; i++) { 
             double sim = jaccard_similarity(results[0], results[i]);
-            if (sim > 0.3) {
+            if (sim > 0.3) { 
                 printf(" -> %s (Sim: %.2f)\n", results[i]->title, sim);
                 found_sim++;
                 if(found_sim >= 5) break; 
             }
         }
+        if (found_sim == 0) printf(" No high text similarity found in top results.\n");
     }
 
     return 0;

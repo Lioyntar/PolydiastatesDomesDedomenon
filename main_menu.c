@@ -17,24 +17,23 @@ int main() {
 
         if (choice == 0) break;
         
-        // Χρήση system() για compile & run on the fly
-        // Προϋποθέτει ότι έχεις GCC εγκατεστημένο
+        // ΑΛΛΑΓΗ: Καλούμε απευθείας τα .exe χωρίς gcc
+        // (Βεβαιώσου ότι τα .exe ονομάζονται έτσι όπως φαίνονται παρακάτω)
         if (choice == 1) {
             printf("\n--- Running k-d Tree ---\n");
-            system("gcc tree_kdtree.c -o kdtree && kdtree"); 
-            // Αν είσαι σε Linux βάλε ./kdtree, σε Windows kdtree
+            system("tree_kdtree.exe"); 
         }
         else if (choice == 2) {
              printf("\n--- Running Quad Tree ---\n");
-             system("gcc tree_quad.c -o quadtree && quadtree");
+             system("tree_quad.exe");
         }
         else if (choice == 3) {
              printf("\n--- Running Range Tree ---\n");
-             system("gcc tree_range.c -o rangetree && rangetree");
+             system("tree_range.exe");
         }
         else if (choice == 4) {
              printf("\n--- Running R-Tree ---\n");
-             system("gcc tree_rtree.c -o rtree && rtree");
+             system("tree_rtree.exe");
         }
     }
     return 0;
