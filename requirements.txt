@@ -1,0 +1,8 @@
+# System Requirements
+1. GCC Compiler (MinGW for Windows, or standard gcc for Linux/macOS)
+2. GNU Make (to run the Makefile)
+
+# Dataset Requirement
+The program requires the following CSV file to be placed in the root directory:
+- Filename: movies.csv
+- Source: TMDB 5000 Movie Dataset or equivalent (must match the expected CSV format in the code)
