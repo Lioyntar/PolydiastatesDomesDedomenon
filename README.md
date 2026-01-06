@@ -1,25 +1,19 @@
 # PolydiastatesDomesDedomenon
 
-DATA
-
 # Multi-Dimensional Data Structures Project (C Implementation)
 
 
 
-This project implements and experimentally evaluates four multi-dimensional data structures for indexing and querying movie metadata.
 
 
-
-\## implemented Data Structures
 
 1\.  ''k-d Tree''
 
-2\.  ''Quad Tree'' (Adapted for 3D data: Budget, Popularity, Runtime)
+2\.  ''Quad Tree'' 
 
 3\.  ''Range Tree''
 
 4\.  ''R-Tree''
-
 
 
 \## Features
@@ -44,7 +38,7 @@ This project implements and experimentally evaluates four multi-dimensional data
 
 To build and run this project, you need:
 
-1\.  ''GCC Compiler'' (e.g., MinGW for Windows).
+1\.  ''GCC Compiler'' 
 
 2\.  ''Make'' tool.
 
@@ -58,11 +52,10 @@ To build and run this project, you need:
 
 Crucial Step: The program requires the movie dataset to run.
 
-1\.  Ensure you have the file ''`movies.csv`''.
+1\.  Ensure you have the file ''`movies.csv`''.(https://www.kaggle.com/datasets/mustafasayed1181/movies-metadata-cleaned-dataset-19002025)
 
 2\.  Place `movies.csv` inside the same folder as the .c source files.
 
-&nbsp;  
 
 
 
