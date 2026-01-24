@@ -48,7 +48,7 @@ Download the dataset from Kaggle: https://www.kaggle.com/datasets/mustafasayed11
 
 Rename the main file to movies.csv.
 
-Place movies.csv inside the same folder as the .c and .py files.
+Place movies.csv inside the same folder as the .c files.
 
 
 
