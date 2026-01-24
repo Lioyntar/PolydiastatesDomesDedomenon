@@ -14,15 +14,6 @@ This project implements and evaluates advanced multi-dimensional data structures
 * **kNN Search:** Finds the *k* nearest neighbors based on Euclidean distance.
 * **LSH (Locality Sensitive Hashing):** Implements MinHash with Banding technique to find semantically similar movies based on **Genres** and **Production Companies**.
 
-### Python Implementation (Data Analysis)
-* **Automated EDA:** A script (`analysis_full.py`) that handles CSV parsing (including separator/encoding issues).
-* **Visualizations:** Automatically generates 5 key graphs for the project report:
-    * Movie Runtime Distribution.
-    * Budget vs. Popularity Correlation.
-    * Release Year Distribution.
-    * Top 10 Genres (Textual analysis for LSH).
-    * Top 10 Production Companies (Textual analysis for LSH).
-
 ---
 
 ## 🛠️ Prerequisites
@@ -31,11 +22,8 @@ To build and run this project, you need:
 
 1.  **GCC Compiler** (MinGW for Windows or standard GCC for Linux/Mac).
 2.  **Make** tool.
-3.  **Python 3.x** (for the analysis part).
 
-Install the required Python libraries:
-```bash
-pip install pandas matplotlib seaborn
+
 
 
 
@@ -46,8 +34,6 @@ main_menu.c: The entry point for the C program.
 tree_*.c: Source code for each data structure (k-d, Quad, Range, R-Tree).
 
 movies_common.h: Shared structures and helper functions.
-
-analysis_full.py: Python script for generating graphs.
 
 movies.csv: The dataset file (Required).
 
@@ -72,6 +58,4 @@ make
 main_menu.exe
 make clean
 
-Run the analysis:
-go to analysis_notebook.ipynb
-Run the code by pressing the triangle play button at the left of the code block.
+
