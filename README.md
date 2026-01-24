@@ -1,7 +1,6 @@
 # Multi-Dimensional Data Structures & Data Analysis Project
 
-This project implements and evaluates advanced multi-dimensional data structures in **C** for indexing movie metadata. Additionally, it includes a **Python** module for Exploratory Data Analysis (EDA) to generate visual insights for the project report.
-
+This project implements and evaluates advanced multi-dimensional data structures in **C** for indexing movie metadata.
 ## 🚀 Key Features
 
 ### C Implementation (Data Structures)
