@@ -12,16 +12,24 @@
 #define MAX_MOVIES 200000 
 #define NUM_HASHES 20     
 
+// --- ΡΥΘΜΙΣΗ ΔΙΑΣΤΑΣΕΩΝ ---
+// Αλλάξτε το σε 2, 3, 4 ή 5
+#define K_DIMS 5 
+
 // --- DOMES ---
 typedef struct {
     int id;
     char title[250];
-    double budget;
-    double popularity;
-    double runtime;
+    // values[0]: Budget
+    // values[1]: Popularity
+    // values[2]: Runtime (if K>2)
+    // values[3]: Vote Average (if K>3)
+    // values[4]: Revenue (if K>4)
+    double values[K_DIMS]; 
+
     char text_feature[600]; 
     unsigned int minhash_sig[NUM_HASHES];
-    int is_deleted; // ΝΕΟ: Για τη λειτουργία Delete
+    int is_deleted; 
 } Movie;
 
 typedef struct {
@@ -63,13 +71,15 @@ double jaccard_similarity(Movie *m1, Movie *m2) {
     return (double)matches / NUM_HASHES;
 }
 
-// --- kNN & DISTANCE FUNCTIONS (NEO) ---
+// --- kNN & DISTANCE FUNCTIONS ---
 double euclidean_dist(Movie *m1, Movie *m2) {
-    // Κανονικοποίηση (απλοϊκή) γιατί το budget είναι τεράστιο
-    double d_b = (m1->budget - m2->budget) / 1000000.0; // ανα εκατομμύριο
-    double d_p = (m1->popularity - m2->popularity);
-    double d_r = (m1->runtime - m2->runtime);
-    return sqrt(d_b*d_b + d_p*d_p + d_r*d_r);
+    double sum = 0.0;
+    for (int i = 0; i < K_DIMS; i++) {
+        double diff = m1->values[i] - m2->values[i];
+        if (i == 0 || (K_DIMS > 4 && i == 4)) diff /= 1000000.0; // Scaling for large numbers
+        sum += diff * diff;
+    }
+    return sqrt(sum);
 }
 
 int cmp_neighbor(const void *a, const void *b) {
@@ -91,7 +101,7 @@ void run_knn(Movie *target, Movie **candidates, int count, int k) {
     
     printf("\n[kNN Search] Top %d Nearest Neighbors (Numeric Space) for '%s':\n", k, target->title);
     for(int i=0; i<k && i<count; i++) {
-        if (neighbors[i].dist > 0) { // Skip self
+        if (neighbors[i].dist >= 0) { 
             printf(" %d. %s (Dist: %.2f)\n", i+1, neighbors[i].movie->title, neighbors[i].dist);
         }
     }
@@ -109,20 +119,19 @@ double parse_european_double(char *str) {
 }
 
 void get_csv_field(char *line, int index, char *output) {
-    char *p = line;
-    int current_idx = 0;
-    int buf_pos = 0;
-    output[0] = '\0'; 
-    while (current_idx < index && *p != '\0') {
-        if (*p == ';') current_idx++;
-        p++;
+    char *ptr = line;
+    int cur_col = 0;
+    output[0] = '\0';
+    while (*ptr && cur_col < index) {
+        if (*ptr == ';' || *ptr == ',') cur_col++;
+        ptr++;
     }
-    if (*p == '\0') return; 
-    while (*p != '\0' && *p != ';' && buf_pos < 1023) {
-        output[buf_pos++] = *p;
-        p++;
+    if (*ptr == '\0' || *ptr == '\n' || *ptr == '\r') return;
+    int i = 0;
+    while (*ptr && *ptr != ';' && *ptr != ',' && *ptr != '\n' && *ptr != '\r') {
+        output[i++] = *ptr++;
     }
-    output[buf_pos] = '\0';
+    output[i] = '\0';
 }
 
 int load_csv(const char *filename, Movie *movies) {
@@ -130,28 +139,42 @@ int load_csv(const char *filename, Movie *movies) {
     if (!file) { printf("ERROR: File %s not found.\n", filename); return 0; }
     char line[MAX_LINE];
     int count = 0;
-    char s_title[1024], s_genres[1024], s_budget[1024], s_run[1024], s_pop[1024];
+    char s_title[1024], s_genres[1024];
+    char s_vals[K_DIMS][100]; 
     
-    printf("Loading data...\n");
+    printf("Loading data for %d dimensions...\n", K_DIMS);
     fgets(line, MAX_LINE, file); // Skip Header
 
     while (fgets(line, MAX_LINE, file) && count < MAX_MOVIES) {
         line[strcspn(line, "\r\n")] = 0; 
+        
         get_csv_field(line, 1, s_title);
         get_csv_field(line, 6, s_genres);
-        get_csv_field(line, 8, s_budget);
-        get_csv_field(line, 10, s_run);
-        get_csv_field(line, 11, s_pop);
+        get_csv_field(line, 8, s_vals[0]);  // Budget
+        get_csv_field(line, 11, s_vals[1]); // Popularity
+        
+        // Safe loading based on dimensions
+        if (K_DIMS > 2) get_csv_field(line, 10, s_vals[2]); // Runtime
+        if (K_DIMS > 3) get_csv_field(line, 12, s_vals[3]); // Vote Avg
+        if (K_DIMS > 4) get_csv_field(line, 9, s_vals[4]);  // Revenue
 
-        if (strlen(s_budget) > 0 && strlen(s_pop) > 0) {
-            double b = parse_european_double(s_budget);
-            if (b > 100) { 
+        if (strlen(s_vals[0]) > 0) {
+            double b = parse_european_double(s_vals[0]);
+            if (b > 100 || b == 0) { 
                 movies[count].id = count;
-                movies[count].budget = b;
-                movies[count].popularity = parse_european_double(s_pop);
-                movies[count].runtime = parse_european_double(s_run);
-                movies[count].is_deleted = 0; // Αρχικά δεν είναι διεγραμμένο
+                movies[count].is_deleted = 0;
                 
+                movies[count].values[0] = b;
+                movies[count].values[1] = parse_european_double(s_vals[1]);
+                
+                // ΔΙΟΡΘΩΣΗ: Έλεγχος πριν γράψουμε στη μνήμη
+                if (K_DIMS > 2) movies[count].values[2] = parse_european_double(s_vals[2]);
+                if (K_DIMS > 3) movies[count].values[3] = parse_european_double(s_vals[3]);
+                if (K_DIMS > 4) movies[count].values[4] = parse_european_double(s_vals[4]);
+
+                // Initialize rest to 0 safely
+                for(int k=(K_DIMS < 2 ? 2 : K_DIMS); k<K_DIMS; k++) movies[count].values[k] = 0.0;
+
                 if (strlen(s_title) > 0) strncpy(movies[count].title, s_title, 249);
                 else strcpy(movies[count].title, "Unknown");
                 
